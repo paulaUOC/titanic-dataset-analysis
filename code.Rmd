@@ -80,6 +80,11 @@ Un resumen de los datos:
 str(data)
 ```
 
+```{r}
+summary(data)
+```
+
+En el resumen anterior se ve que habrá valores faltantes en la edad al no poder tener menos de 1 año. Ocurrirá lo mismo con Fare. Por otro lado, se observa como algunas variables tienen NA.
 
 ### 2.1. Eliminar atributos
 
@@ -548,13 +553,19 @@ nrow(notSurvived)
 ```
 
 
-Seguidamente, se estudia la homogeneidad de varianzas mediante el test no paramétrico de _Fligner-Killeen_. En este caso, se estudia la homogeneidad de la varianza de la edad entre grupos que han sobrevivido y los que no.
+Seguidamente, se estudia la homogeneidad de varianzas mediante el test no paramétrico de _Fligner-Killeen_. En este caso, se estudia la homogeneidad de la varianza de la edad y del precio del ticket entre grupos que han sobrevivido y los que no.
 
 ```{r}
 fligner.test(Age ~ Survived, data)
 ```
 
 Como el p-valor es mayor al nivel de significación (0.05) elegido se acepta la hipótesis nula de que las varianzas de ambas muestras son homogéneas.
+
+```{r}
+fligner.test(Fare ~ Survived, data)
+```
+
+Como el p-valor es menor al nivel de significación (0.05) se rechaza la hipótesis nula de que las varianzas de ambas muestras son homogéneas.
 
 ### 4.3. Aplicación de pruebas estadísticas para comparar los grupos de datos
 
@@ -581,7 +592,30 @@ t.test(survived$Age, notSurvived$Age,  alternative = "less", var.equal = TRUE)
 Puesto que 0.001039 es menor que el nivel de significación, entonces se rechaza la hipótesis nula en favor de la hipótesis alternativa. La media de la edad de las personas que sobrevivieron es menor a la media de la edad de los que no sobrevivieron. Se puede deducir que se salvaron más jóvenes que gente mayor. 
 
 
-#### 4.3.2. Correlación entre la supervivencia y el resto de atributos
+#### 4.3.2. ¿Es el precio del ticket de las personas que han sobrevivido mayor al de las que han fallecido?
+
+La prueba estadística que se aplicará consistirá en un contraste de hipótesis de dos muestras independientes sobre la media para determinar si la media del precio de los tickets de las personas que han sobrevivido es mayor al precio pagado por las que han fallecido.
+
+La primera muestra tendrá los precios de los tickets de los pasajeros que han sobrevivido y la otra muestra tendrá los precios restantes.
+
+Como lo que se quiere comparar es la media y anteriormente se ha establecido que la distribución muestral de la media de estos dos grupos es una normal gracias al _teorema del límite central_, se aplicará un test paramétrico unilateral donde la varianza poblacional es desconocida sin asumir homogeneidad (como se ha demostrado en el apartado anterior).
+
+
+Las hipótesis serán:
+
+$$H_{0}: \mu_{s}=\mu_{ns}$$
+$$H_{1}: \mu_{s}>\mu_{ns}$$
+
+El nivel de significación elegido es 0.05.
+
+```{r}
+t.test(survived$Fare, notSurvived$Fare,  alternative = "greater", var.equal = FALSE)
+```
+
+Puesto que $5.028^{-13}$ es menor que el nivel de significación, entonces se rechaza la hipótesis nula en favor de la hipótesis alternativa. La media del precio de los billetes de las personas que sobrevivieron es mayor a la media del precio pagado por los que no sobrevivieron. 
+
+
+#### 4.3.3. Correlación entre la supervivencia y el resto de atributos
 
 La variable que indica si un pasajero ha sobrevivido es una variable binaria, y no todos los atributos restantes son de un mismo tipo, por lo que se usarán diferentes técnicas y métodos para decidir la correlación entre los atributos.
 
@@ -616,93 +650,66 @@ Como todos los p-valores de las variables categóricas son menores que el nivel 
 
 ##### Survived y variables numéricas (Edad y Fare)
 
-Para calcular la correlación entre una variable categórica de dos niveles y una numérica se puede usar la regresión lineal generando un modelo para cada par Survived-Age y Survived-Fare.
+Para calcular la correlación entre una variable categórica de dos niveles y una numérica no se ha utilizado el test paramétrico _One-Way ANOVA_ ya que este requiere que las variables sigan una distribución normal, y este no es el caso de la edad y del precio del ticket.
 
-No se ha utilizado el test paramétrico _One-Way ANOVA_ ya que este requiere que las variables sigan una distribución normal, y este no es el caso de la edad y del precio del ticket.
-
-En este caso la variable independiente será "Survived" y las variables dependientes serán "Age" y "Fare".
+Se va a utilizar el test de _Kruskal-Wallis_.
 
 ```{r}
-model <- lm(formula = Age ~ Survived, data = data)
-summary(model)
+kruskal.test(Age ~ Survived, data = data)
 ```
 
-A partir de los coeficientes se sabe que la ecuación del modelo queda:
-
-$$Age = 31.047 - 3.120*Survived$$
-
-La variable Survived será 1 cuando haya sobrevivido y 0 cuando no, por este motivo solo aparece "Survived1" en la lista de coeficientes del modelo. Cada coeficiente aparece junto a su error estándar y acompañado del valor de un estadístico t de Student y un p-valor que permiten contrastar la significación del parámetro en cuestión y resolver los siguientes contrastes de hipótesis:
-
-$H_{0}:B_{i}=0$ La variable $X_{i}$ no es explicativa
-$H_{1}:B_{i}\neq0$ La variable $X_{i}$ es explicativa
-
-Mediante estos contrastes se pretende determinar si una variable $X_{i}$ figura en el modelo de regresión y, por tanto, si es o no una variable explicativa del comportamiento de la variable Y.
-
-En esta ocasión el p-valor de la variable que indica que el pasajero sobrevive es menor al nivel de significación del 0.05. De esta manera, la hipótesis nula se rechaza concluyendo que la variable "Survived" es explicativa de la variable "Age". 
-
-El coeficiente de determinación ($R^2$) ajustado es 0.0095. Se puede aventurar que es bastante malo al acercarse al cero. El modelo de regresión explica un 0.095% de la variabilidad total de las observaciones.
-
-Este modelo es muy simple, pero a través de él se puede reafirmar lo que ya se sabe; la edad de una persona que sobrevive (el coeficiente es negativo) será menor que la de una persona que no ha sobrevivido.
-
+Como el p-valor es menor a 0.05 (nivel de significación) se acepta la hipótesis alternativa de que hay diferencias significativas entre la edad de las personas que sobrevivieron y las que no lo hicieron.
 
 ```{r}
-model <- lm(formula = Fare ~ Survived, data = data)
-summary(model)
+kruskal.test(Fare ~ Survived, data = data)
 ```
 
-Según el modelo regresión este atributo es más significativo estadísticamente que la edad al ser el p-valor mucho menor. Además, la calidad del modelo, aunque es mala ha mejorado bastante y explica un 6.803% de la variabilidad total de las observaciones.
+Como el p-valor es menor a 0.05 (nivel de significación) también se acepta la hipótesis alternativa de que hay diferencias significativas entre el precio del ticket del grupo que sobrevivió y el que no lo hizo.
 
-Según la salida del modelo, alguien que ha sobrevivido ha pagado 22.25 más por el billete que alguien que no ha sobrevivido.
+#### 4.3.4. Modelo supervisado
 
-El atributo "Fare" será uno que habrá que tener en cuenta.
+Se va a entrenar un modelo supervisado para predecir si un pasajero sobrevive. El método de evaluación del modelo será 10-fold-cross validation. 
 
-#### 4.3.2. Modelo supervisado
-
-Se va a entrenar un modelo supervisado para predecir si un pasajero sobrevive. Antes de elegir modelo se van a separar los datos mediante el método _holdout_. El 70% de los datos serán de entrenamiento "train" y el 30% serán para comprobar el _accuracy_ del modelo "test". La partición de los datos será estratificada manteniendo así el mismo porcentaje de instancias de cada valor de la clase (Survived: 0 o 1).
-
-```{r}
-h <- holdout(data$Survived, ratio=0.7, mode="stratified")
-dataTrain <- data[h$tr,]
-dataTest <- data[h$ts,]
-```
-
-El modelo elegido es _Random Forest_. Se ha elegido este modelo como modelo base ("baseline") al ser bastante popular. Este modelo recibe dos argumentos: _mtry_ será el número máximo de variables en los árboles creados y _ntree_ será el número de árboles a realizar. 
-
-```{r}
-printResults <- function(model){
-  pred <- predict(model, dataTest, OOB=TRUE, type="class")
-  print(confusionMatrix(dataTest$Survived, pred)$overall['Accuracy']) 
-}
-```
-
+El modelo elegido es _Random Forest_. Se ha elegido este modelo como modelo base ("baseline") al ser bastante popular.
 
 Se prueban varios modelos con distintos atributos:
 
+
 ```{r}
-# Todos los atributos
-model1 <- randomForest(Survived ~ Title + Sex + Pclass + hasFamily + Embarked + Age + Fare, data=dataTrain, ntree=500)
-printResults(model1)
+# Define train control for k fold cross validation
+train_control <- trainControl(method="cv", number=10)
+# Fit Random Forest 
+model1 <- train(Survived ~ Title + Sex + Pclass + hasFamily + Embarked + Age + Fare, data=data, trControl=train_control, method="rf")
+# Summarise Results
+print(model1)
 ```
+
 
 ```{r}
 # Solo el título, el sexo y la clase del pasajero
-model2 <- randomForest(Survived ~ Title + Sex + Pclass, data=dataTrain, ntree=500)
-printResults(model2)
+# Fit Random Forest 
+model2 <- train(Survived ~ Title + Sex + Pclass, data=data, trControl=train_control, method="rf")
+# Summarise Results
+print(model2)
 ```
 
 ```{r}
 # Solo el título, el sexo, la clase y si un pasajero tiene familia
-model3 <- randomForest(Survived ~ Title + Sex + Pclass + hasFamily, data=dataTrain, ntree=500)
-printResults(model3)
+# Fit Random Forest 
+model3 <- train(Survived ~ Title + Sex + Pclass + hasFamily, data=data, trControl=train_control, method="rf")
+# Summarise Results
+print(model3)
 ```
 
 ```{r}
 # Solo el sexo, la clase, si una persona tiene familia y la edad
-model4 <- randomForest(Survived ~ Sex + Fare + hasFamily + Age, data=dataTrain, ntree=500)
-printResults(model4)
+# Fit Random Forest 
+model4 <- train(Survived ~ Sex + Fare + hasFamily + Age, data=data, trControl=train_control, method="rf")
+# Summarise Results
+print(model4)
 ```
 
-El mejor modelo _baseline_ conseguido tiene un 0.83 de _accuracy_ y solo utiliza los atributos: sexo, el precio del ticket, si una persona tiene familia y la edad del pasajero.
+El mejor modelo _baseline_ conseguido tiene un 0.85 de _accuracy_ y utiliza los atributos: título, sexo, clase, si una persona tiene familia, el lugar de embarcación, la edad y el precio del ticket. Es decir, utiliza todos los atributos.
 
 
 ## 5. Representación de los resultados a partir de tablas y gráficas
@@ -771,9 +778,13 @@ legend("topleft", c("No sobrevive","Superviviente"), fill =c("antiquewhite","ali
 
 Se han realizado tres tipos de pruebas estadísticas sobre un conjunto de datos que se correspondía con diferentes atributos relativos a los pasajeros del Titanic con motivo de poder responder a la pregunta u objetivo que se planteaba al comienzo del informe.
 
-Mediante el contraste de hipótesis realizado se ha podido comprobar como la edad media de las personas que han sobrevivido es menor a la de aquellos pasajeros que han fallecido. La conclusión obtenida mediante este contraste de hipótesis se puede observar de forma visual en los gráficos realizados en el apartado anterior.
+Mediante los contrastes de hipótesis realizados se ha podido comprobar que la edad media de las personas que han sobrevivido es menor a la de aquellos pasajeros que han fallecido. Se puede deducir que se salvaron más jóvenes que gente mayor. Esto también se ha podido comprobar con el test de _Kruskal-Wallis_ puesto que hay diferencias significativas entre la edad de las personas que sobrevivieron y las que no lo hicieron. Hay un pico hasta los cinco años, comprobando así que hubo más supervivientes que fallecidos entre los niños y niñas de corta edad. 
 
-Por otro lado, el análisis de correlación realizado ha permitido conocer cuáles son las variables que están más relacionadas con la supervivencia de un pasajero. Una vez conocidas estas, se ha procedido a implementar varios modelos supervisados dividiendo los datos según el método _holdout_. Se ha elegido el modelo que ha tenido el mayor porcentaje en la métrica _Accuracy_ como el modelo a utilizar para predecir si un pasajero sobrevivió o no.
+La media del precio de los billetes de las personas que sobrevivieron es mayor a la media del precio pagado por los que no sobrevivieron. A través de los análisis realizados se sabe que cuanta más alta la clase socioeconómica más alto el precio del billete. Por lo tanto, sobreviven más personas de la primera clase, siendo la tercera la clase que más fallecidos tiene. Esta conclusión también se aprecia en los gráficos del anterior apartado.
+
+Por otro lado, el análisis de correlación realizado ha permitido conocer cuáles son las variables que están más relacionadas con la supervivencia de un pasajero. Se rechaza que las variables "Sex", "Embarked", "Pclass", "hasFamily" y "Title" sean independientes de "Survived". Es decir, el test de correlación empleado demuestra que hay cierta relación entre estas variables y si una persona sobrevivió. También se sabe que han sobrevivido más mujeres que hombres, y que una gran parte de los pasajeros que eran hombres no han sobrevivido.  Las personas que más se salvaron fueron las mujeres, es decir, pasajeros con título "Miss" y "Mrs". 
+
+El modelo utilizado para predecir si alguien ha sobrevivido es _RandomForest_ y su evaluación se ha realizado mediante la técnica 10-fold-cross validation. Se ha elegido el modelo que ha tenido el mayor porcentaje en la métrica _Accuracy_. Este modelo ha tenido un accuracy del 85%, y ha utilizado todos los atributos presentes en los datos.
 
 Además, previamente los datos se han limpiado evitando inconsistencias, casos de ceros o elementos vacíos y valores extremos (también llamados _outliers_). Los valores faltantes se han imputado utilizando algoritmos como bien puede ser el KNN y/o eligiendo la moda/media de ciertos valores.
 
